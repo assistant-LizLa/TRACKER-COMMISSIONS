@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tracker de Comisiones</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root{--navy:#0D1B2A;--gold:#C9A84C;--gold-light:#E8C97A;--cream:#F8F4EE;--cream-dark:#EDE7DC;--text:#1A1A2E;--text-muted:#6B6B80;--white:#FFFFFF;--border:#D4C9B8;--success:#2D6A4F;--error:#C1392B;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;background:#F2EFE9;min-height:100vh;padding:32px 20px 60px;}
+  body::before{content:'';position:fixed;top:0;left:0;right:0;height:220px;background:var(--navy);z-index:0;}
+  .page{position:relative;z-index:1;max-width:1100px;margin:0 auto;}
+  .header{padding:0 0 28px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+  .header-left .eyebrow{font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;}
+  .header-left h1{font-family:'DM Serif Display',serif;font-size:clamp(24px,4vw,36px);color:var(--white);line-height:1.15;}
+  .header-left h1 em{font-style:italic;color:var(--gold-light);}
+  .header-right a{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.1);color:var(--white);font-size:13px;font-weight:500;padding:8px 16px;border-radius:20px;text-decoration:none;border:1px solid rgba(255,255,255,0.2);transition:background 0.2s;}
+  .header-right a:hover{background:rgba(255,255,255,0.2);}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+  .metric{background:var(--white);border-radius:14px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+  .metric-label{font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;}
+  .metric-value{font-size:24px;font-weight:500;color:var(--text);}
+  .metric-value.gold{color:#854F0B;}
+  .metric-value.blue{color:#185FA5;}
+  .metric-value.green{color:#2D6A4F;}
+  .filters{background:var(--white);border-radius:14px;padding:16px 20px;margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+  .filters select, .filters input{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:7px 12px;outline:none;appearance:none;-webkit-appearance:none;}
+  .filters select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236B6B80' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+  .filters label{font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);}
+  .refresh-btn{margin-left:auto;background:var(--navy);color:var(--white);border:none;border-radius:8px;padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .refresh-btn:hover{opacity:0.85;}
+  .cards{display:flex;flex-direction:column;gap:10px;}
+  .commission-card{background:var(--white);border-radius:14px;padding:18px 22px;box-shadow:0 2px 8px rgba(0,0,0,0.06);transition:box-shadow 0.2s;}
+  .commission-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:12px;}
+  .card-title{font-size:15px;font-weight:500;color:var(--text);margin-bottom:3px;}
+  .card-meta{font-size:12px;color:var(--text-muted);}
+  .card-right{text-align:right;flex-shrink:0;}
+  .card-amount{font-size:18px;font-weight:500;color:var(--text);}
+  .card-pct{font-size:11px;color:var(--text-muted);margin-top:2px;}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-top:4px;}
+  .badge-pending{background:#FAEEDA;color:#854F0B;}
+  .badge-process{background:#E6F1FB;color:#185FA5;}
+  .badge-paid{background:#EAF3DE;color:#2D6A4F;}
+  .card-details{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 0;border-top:1px solid var(--cream-dark);border-bottom:1px solid var(--cream-dark);margin-bottom:12px;font-size:12px;}
+  .detail-item span:first-child{color:var(--text-muted);display:block;margin-bottom:2px;}
+  .detail-item span:last-child{font-weight:500;color:var(--text);}
+  .card-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:6px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:var(--cream);color:var(--text);transition:background 0.15s;}
+  .btn:hover{background:var(--cream-dark);}
+  .btn-primary{background:var(--navy);color:var(--white);border-color:var(--navy);}
+  .btn-primary:hover{opacity:0.85;background:var(--navy);}
+  .btn-success{background:#EAF3DE;color:#2D6A4F;border-color:#C0DD97;}
+  .btn-success:hover{background:#D9EAD3;}
+  .comprobante-tag{font-size:11px;color:#2D6A4F;background:#EAF3DE;padding:3px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:4px;}
+  .empty{text-align:center;padding:60px 20px;color:var(--text-muted);font-size:14px;}
+  .loading{text-align:center;padding:60px 20px;color:var(--text-muted);}
+  .spinner-lg{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 12px;}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--white);border-radius:16px;padding:28px;width:100%;max-width:440px;box-shadow:0 24px 60px rgba(0,0,0,0.25);}
+  .modal-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--text);margin-bottom:6px;}
+  .modal-sub{font-size:13px;color:var(--text-muted);margin-bottom:20px;}
+  .modal-summary{background:var(--cream);border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:13px;}
+  .modal-summary .row{display:flex;justify-content:space-between;padding:3px 0;}
+  .modal-summary .row span:first-child{color:var(--text-muted);}
+  .modal-summary .row span:last-child{font-weight:500;}
+  .modal-summary .row.total span:last-child{color:#2D6A4F;font-size:15px;}
+  .form-group{margin-bottom:14px;}
+  .form-group label{display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;}
+  .form-group input, .form-group textarea{width:100%;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--cream);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;outline:none;transition:border-color 0.2s;}
+  .form-group input:focus, .form-group textarea:focus{border-color:var(--gold);background:var(--white);}
+  .form-group textarea{resize:vertical;min-height:70px;}
+  .send-toggle{display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;}
+  .send-toggle input[type=checkbox]{width:16px;height:16px;accent-color:var(--navy);cursor:pointer;}
+  .send-toggle span{font-size:13px;color:var(--text);}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:var(--white);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:500;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:999;display:flex;align-items:center;gap:8px;}
+  .toast.show{opacity:1;}
+  .toast.error{background:var(--error);}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @media(max-width:640px){.metrics{grid-template-columns:repeat(2,1fr);}.card-details{grid-template-columns:repeat(2,1fr);}.header{flex-direction:column;align-items:flex-start;}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-left">
+      <div class="eyebrow">LL Team · Sistema de Comisiones</div>
+      <h1>Tracker de <em>Comisiones</em></h1>
+    </div>
+    <div class="header-right">
+      <a href="https://assistant-lizla.github.io/comisiones-registro/" target="_blank">+ Nueva comisión</a>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Total facturado</div>
+      <div class="metric-value" id="mTotal">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Pendientes</div>
+      <div class="metric-value gold" id="mPending">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">En proceso</div>
+      <div class="metric-value blue" id="mProcess">—</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Pagadas</div>
+      <div class="metric-value green" id="mPaid">—</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div>
+      <label>Estado</label>
+      <select id="fEstado" onchange="renderCards()">
+        <option value="">Todos</option>
+        <option value="Pendiente">Pendiente</option>
+        <option value="En proceso">En proceso</option>
+        <option value="Pagada">Pagada</option>
+      </select>
+    </div>
+    <div>
+      <label>Broker</label>
+      <select id="fBroker" onchange="renderCards()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div>
+      <label>Proyecto</label>
+      <select id="fProyecto" onchange="renderCards()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <button class="refresh-btn" onclick="loadComisiones()">↻ Actualizar</button>
+  </div>
+
+  <div id="cardsContainer">
+    <div class="loading">
+      <div class="spinner-lg"></div>
+      <p>Cargando comisiones...</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL EN PROCESO -->
+<div class="modal-overlay" id="modalProcess">
+  <div class="modal">
+    <div class="modal-title">Marcar en proceso</div>
+    <div class="modal-sub" id="mpSub">—</div>
+    <div class="modal-summary" id="mpSummary"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalProcess')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmProcess()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PAGADA -->
+<div class="modal-overlay" id="modalPaid">
+  <div class="modal">
+    <div class="modal-title">Confirmar pago</div>
+    <div class="modal-sub" id="mpdSub">—</div>
+    <div class="modal-summary" id="mpdSummary"></div>
+    <div class="form-group">
+      <label>Referencia / comprobante (opcional)</label>
+      <input type="text" id="mpdComprobante" placeholder="N° transferencia, referencia bancaria..."/>
+    </div>
+    <label class="send-toggle">
+      <input type="checkbox" id="mpdSendEmail" checked/>
+      <span>Enviar email de confirmación al broker</span>
+    </label>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modalPaid')">Cancelar</button>
+      <button class="btn btn-success" id="mpdBtn" onclick="confirmPaid()">Confirmar pago y notificar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw0SOWc7xrlVSCAs5g97zEsU-ZI5Rx1fUTEOQPLuVSYBB92x_0R-LrxRmrp0U-PHdhTkg/exec';
+let allComisiones = [];
+let currentTarget = null;
+
+function fmt$(n){return 'B/. '+parseFloat(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtDate(d){if(!d)return '—';try{const dt=new Date(d);return isNaN(dt)?d:dt.toLocaleDateString('es-PA',{day:'numeric',month:'short',year:'numeric'});}catch(e){return d;}}
+
+function toast(msg, ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast'+(ok?'':' error');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+async function loadComisiones(){
+  document.getElementById('cardsContainer').innerHTML='<div class="loading"><div class="spinner-lg"></div><p>Cargando comisiones...</p></div>';
+  try{
+    const res = await fetch(SCRIPT_URL+'?action=comisiones');
+    allComisiones = await res.json();
+    updateMetrics();
+    populateFilters();
+    renderCards();
+  }catch(e){
+    document.getElementById('cardsContainer').innerHTML='<div class="empty">Error cargando datos. <button class="btn" onclick="loadComisiones()">Reintentar</button></div>';
+  }
+}
+
+function updateMetrics(){
+  const total = allComisiones.reduce((s,c)=>s+parseFloat(c.total||0),0);
+  const pending = allComisiones.filter(c=>c.estado==='Pendiente').reduce((s,c)=>s+parseFloat(c.total||0),0);
+  const process = allComisiones.filter(c=>c.estado==='En proceso').reduce((s,c)=>s+parseFloat(c.total||0),0);
+  const paid = allComisiones.filter(c=>c.estado==='Pagada').reduce((s,c)=>s+parseFloat(c.total||0),0);
+  document.getElementById('mTotal').textContent=fmt$(total);
+  document.getElementById('mPending').textContent=fmt$(pending);
+  document.getElementById('mProcess').textContent=fmt$(process);
+  document.getElementById('mPaid').textContent=fmt$(paid);
+}
+
+function populateFilters(){
+  const brokers=[...new Set(allComisiones.map(c=>c.broker).filter(Boolean))].sort();
+  const proyectos=[...new Set(allComisiones.map(c=>c.proyecto).filter(Boolean))].sort();
+  const fB=document.getElementById('fBroker');
+  const fP=document.getElementById('fProyecto');
+  const curB=fB.value, curP=fP.value;
+  fB.innerHTML='<option value="">Todos</option>'+brokers.map(b=>`<option value="${b}">${b}</option>`).join('');
+  fP.innerHTML='<option value="">Todos</option>'+proyectos.map(p=>`<option value="${p}">${p}</option>`).join('');
+  fB.value=curB; fP.value=curP;
+}
+
+function renderCards(){
+  const fe=document.getElementById('fEstado').value;
+  const fb=document.getElementById('fBroker').value;
+  const fp=document.getElementById('fProyecto').value;
+  let list=allComisiones.filter(c=>
+    (!fe||c.estado===fe)&&(!fb||c.broker===fb)&&(!fp||c.proyecto===fp)
+  ).slice().reverse();
+  const container=document.getElementById('cardsContainer');
+  if(!list.length){container.innerHTML='<div class="empty">No hay comisiones con los filtros seleccionados.</div>';return;}
+  container.innerHTML='<div class="cards">'+list.map(c=>buildCard(c)).join('')+'</div>';
+}
+
+function buildCard(c){
+  const bc=c.estado==='Pendiente'?'badge-pending':c.estado==='En proceso'?'badge-process':'badge-paid';
+  const estadoLabel=c.estado||'—';
+  const socParts = c.sociedad?c.sociedad.split(' — RUC: '):['—','—'];
+  return `<div class="commission-card">
+    <div class="card-top">
+      <div>
+        <div class="card-title">${c.propiedad||'—'}</div>
+        <div class="card-meta">${c.broker||'—'} · ${c.proyecto||'—'}</div>
+      </div>
+      <div class="card-right">
+        <div class="card-amount">${fmt$(c.total)}</div>
+        ${c.pctComision?`<div class="card-pct">${c.pctComision}%${c.itbmsAplica==='Sí'?' + ITBMS':''}</div>`:''}
+        <div><span class="badge ${bc}">${estadoLabel}</span></div>
+      </div>
+    </div>
+    <div class="card-details">
+      <div class="detail-item"><span>Precio venta</span><span>${fmt$(c.precioVenta)}</span></div>
+      <div class="detail-item"><span>Comisión base</span><span>${fmt$(c.comisionBase)}</span></div>
+      <div class="detail-item"><span>Sociedad</span><span>${socParts[0]}</span></div>
+      <div class="detail-item"><span>Fecha recibida</span><span>${fmtDate(c.fechaRecibida)}</span></div>
+      <div class="detail-item"><span>Fecha en proceso</span><span>${fmtDate(c.fechaEnProceso)}</span></div>
+      <div class="detail-item"><span>Fecha pago</span><span>${fmtDate(c.fechaPago)}</span></div>
+    </div>
+    <div class="card-actions">
+      ${c.estado==='Pendiente'?`<button class="btn btn-primary" onclick="openProcess(${c.rowIndex})">→ Marcar en proceso</button>`:''}
+      ${c.estado==='En proceso'?`<button class="btn btn-success" onclick="openPaid(${c.rowIndex})">✓ Confirmar pago</button>`:''}
+      ${c.comprobante?`<span class="comprobante-tag">✓ ${c.comprobante}</span>`:''}
+      ${c.notas?`<span style="font-size:11px;color:var(--text-muted);align-self:center">${c.notas}</span>`:''}
+    </div>
+  </div>`;
+}
+
+function openProcess(rowIndex){
+  const c=allComisiones.find(x=>x.rowIndex===rowIndex);
+  currentTarget=c;
+  document.getElementById('mpSub').textContent=c.broker+' — '+c.propiedad;
+  document.getElementById('mpSummary').innerHTML=`
+    <div class="row"><span>Proyecto</span><span>${c.proyecto||'—'}</span></div>
+    <div class="row"><span>Total</span><span>${fmt$(c.total)}</span></div>`;
+  document.getElementById('modalProcess').classList.add('open');
+}
+
+function openPaid(rowIndex){
+  const c=allComisiones.find(x=>x.rowIndex===rowIndex);
+  currentTarget=c;
+  document.getElementById('mpdSub').textContent=c.broker+' — '+c.propiedad;
+  document.getElementById('mpdSummary').innerHTML=`
+    <div class="row"><span>Proyecto</span><span>${c.proyecto||'—'}</span></div>
+    <div class="row"><span>Comisión base</span><span>${fmt$(c.comisionBase)}</span></div>
+    ${c.itbmsAplica==='Sí'?`<div class="row"><span>ITBMS</span><span>${fmt$(c.itbmsMonto)}</span></div>`:''}
+    <div class="row total"><span>Total pagado</span><span>${fmt$(c.total)}</span></div>`;
+  document.getElementById('mpdComprobante').value='';
+  document.getElementById('mpdSendEmail').checked=true;
+  document.getElementById('modalPaid').classList.add('open');
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+async function confirmProcess(){
+  if(!currentTarget)return;
+  const formData=new FormData();
+  const socParts=currentTarget.sociedad?currentTarget.sociedad.split(' — RUC: '):['',''];
+  formData.append('data',JSON.stringify({
+    action:'actualizarEstado',
+    rowIndex:currentTarget.rowIndex,
+    estado:'En proceso'
+  }));
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:formData});
+    closeModal('modalProcess');
+    toast('Marcada como en proceso ✓');
+    setTimeout(loadComisiones,1500);
+  }catch(e){toast('Error al actualizar',false);}
+}
+
+async function confirmPaid(){
+  if(!currentTarget)return;
+  const comprobante=document.getElementById('mpdComprobante').value.trim();
+  const sendEmail=document.getElementById('mpdSendEmail').checked;
+  const btn=document.getElementById('mpdBtn');
+  btn.disabled=true; btn.textContent='Procesando...';
+  const socParts=currentTarget.sociedad?currentTarget.sociedad.split(' — RUC: '):['',''];
+  const formData=new FormData();
+  formData.append('data',JSON.stringify({
+    action:'actualizarEstado',
+    rowIndex:currentTarget.rowIndex,
+    estado:'Pagada',
+    comprobante:comprobante||'',
+    sendEmail:sendEmail,
+    emailBroker:currentTarget.emailBroker,
+    broker:currentTarget.broker,
+    propiedad:currentTarget.propiedad,
+    proyecto:currentTarget.proyecto,
+    sociedad:socParts[0],
+    ruc:socParts[1]||'',
+    total:currentTarget.total,
+    comisionBase:currentTarget.comisionBase,
+    itbmsAplica:currentTarget.itbmsAplica,
+    itbmsMonto:currentTarget.itbmsMonto,
+    pctComision:currentTarget.pctComision,
+    idioma:currentTarget.idioma||'Español'
+  }));
+  try{
+    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',body:formData});
+    closeModal('modalPaid');
+    toast(sendEmail?'Pago confirmado y email enviado al broker ✓':'Pago confirmado ✓');
+    setTimeout(loadComisiones,1500);
+  }catch(e){toast('Error al confirmar pago',false);}
+  btn.disabled=false; btn.textContent='Confirmar pago y notificar';
+}
+
+loadComisiones();
+</script>
+</body>
+</html>
